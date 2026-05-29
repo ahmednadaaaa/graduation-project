@@ -1,0 +1,57 @@
+# Python/Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+venv/
+venv311/
+venv_new/
+ENV/
+env.bak/
+venv.bak/
+
+# Django specific
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+
+# IDE / Editor config
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Secrets and environment variables
+.env
+.env.local
+.env.*.local
+frontend/.env
+
+# Node and frontend build outputs
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
