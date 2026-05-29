@@ -1,0 +1,33 @@
+# ==============================================================================
+# celery.service (Systemd service to manage Celery in background)
+# Copy to EC2: sudo cp deployment/celery.service /etc/systemd/system/celery.service
+# Enable service: sudo systemctl enable celery
+# Start service: sudo systemctl start celery
+# Check status: sudo systemctl status celery
+# Restart service: sudo systemctl restart celery
+# ==============================================================================
+
+[Unit]
+Description=Celery Worker for UniTrack
+After=network.target redis-server.service
+
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/unitrack
+
+# Environment file with secrets (database, google maps api keys, secret keys, etc.)
+EnvironmentFile=/home/ubuntu/unitrack/.env.production
+Environment=DJANGO_SETTINGS_MODULE=unitrack.settings.production
+
+# Run Celery using the Python virtual environment executable
+ExecStart=/home/ubuntu/unitrack/venv/bin/celery -A unitrack worker --loglevel=info
+
+Restart=always
+RestartSec=3
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

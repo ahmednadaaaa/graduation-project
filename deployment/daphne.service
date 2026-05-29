@@ -1,0 +1,33 @@
+# ==============================================================================
+# daphne.service (Systemd service to manage Daphne in background)
+# Copy to EC2: sudo cp deployment/daphne.service /etc/systemd/system/daphne.service
+# Enable service: sudo systemctl enable daphne
+# Start service: sudo systemctl start daphne
+# Check status: sudo systemctl status daphne
+# Restart service: sudo systemctl restart daphne
+# ==============================================================================
+
+[Unit]
+Description=Daphne ASGI Server for UniTrack
+After=network.target
+
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/unitrack
+
+# Environment file with secrets (database, google maps api keys, secret keys, etc.)
+EnvironmentFile=/home/ubuntu/unitrack/.env.production
+Environment=DJANGO_SETTINGS_MODULE=unitrack.settings.production
+
+# Run Daphne using the Python virtual environment executable
+ExecStart=/home/ubuntu/unitrack/venv/bin/daphne -b 127.0.0.1 -p 8000 unitrack.asgi:application
+
+Restart=always
+RestartSec=3
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
