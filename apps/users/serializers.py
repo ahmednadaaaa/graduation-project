@@ -26,24 +26,41 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
+    profile_picture = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = User
-        fields = ('email', 'password', 'full_name', 'role', 'phone')
+        fields = ('email', 'password', 'full_name', 'role', 'phone', 'profile_picture')
 
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
         if user.role == 'student':
             academic_year = self.context.get('academic_year', 1)
-            from apps.students.models import StudentProfile
+            from apps.students.models import StudentProfile, FaceImage
+            from apps.ai.face_recognition_service import face_recognition_service
             import time
-            StudentProfile.objects.create(
+            
+            # 1. Create StudentProfile
+            profile = StudentProfile.objects.create(
                 user=user,
                 university_id=f"U{int(time.time())}",
                 faculty="General",
                 department="General",
                 academic_year=academic_year
             )
+            
+            # 2. If profile picture is uploaded, save as a FaceImage and process it
+            if user.profile_picture:
+                face_image = FaceImage.objects.create(
+                    student=profile,
+                    image=user.profile_picture,
+                    label="registration_photo"
+                )
+                # Compute embedding immediately
+                processed = face_recognition_service.process_and_save_embedding(face_image)
+                if processed:
+                    profile.is_face_registered = True
+                    profile.save(update_fields=['is_face_registered'])
         return user
 
 class UserProfileSerializer(serializers.ModelSerializer):
