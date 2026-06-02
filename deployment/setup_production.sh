@@ -16,9 +16,14 @@ echo "🔄 Updating system packages..."
 sudo apt-get update -y
 sudo apt-get upgrade -y
 
+# Setup NodeSource repository for Node.js 20
+echo "🟢 Configuring NodeSource repository for Node.js 20..."
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+
 # 2. Install Required Dependencies
-echo "📦 Installing Python, Nginx, PostgreSQL, Redis, and utilities..."
+echo "📦 Installing Node.js, Python, Nginx, PostgreSQL, Redis, and utilities..."
 sudo apt-get install -y \
+    nodejs \
     python3-pip \
     python3-venv \
     python3-dev \
