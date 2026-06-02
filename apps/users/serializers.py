@@ -26,21 +26,31 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-    profile_picture = serializers.ImageField(required=False, allow_null=True)
+    face_images = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        write_only=True,
+        help_text="List of base64-encoded face images captured during registration"
+    )
 
     class Meta:
         model = User
-        fields = ('email', 'password', 'full_name', 'role', 'phone', 'profile_picture')
+        fields = ('email', 'password', 'full_name', 'role', 'phone', 'face_images')
 
     def create(self, validated_data):
+        face_images_data = validated_data.pop('face_images', [])
         user = User.objects.create_user(**validated_data)
         if user.role == 'student':
             academic_year = self.context.get('academic_year', 1)
             from apps.students.models import StudentProfile, FaceImage
             from apps.ai.face_recognition_service import face_recognition_service
+            from django.core.files.base import ContentFile
             import time
-            
-            # 1. Create StudentProfile
+            import base64
+            import logging
+            logger = logging.getLogger(__name__)
+
+            # Create StudentProfile
             profile = StudentProfile.objects.create(
                 user=user,
                 university_id=f"U{int(time.time())}",
@@ -48,19 +58,42 @@ class RegisterSerializer(serializers.ModelSerializer):
                 department="General",
                 academic_year=academic_year
             )
+
+            # Process and save face images
+            saved_count = 0
+            for idx, img_str in enumerate(face_images_data):
+                try:
+                    # If it's a data URL, e.g. "data:image/jpeg;base64,..."
+                    if ',' in img_str:
+                        header, img_str = img_str.split(',', 1)
+                    
+                    img_data = base64.b64decode(img_str)
+                    file_name = f"face_{idx}_{int(time.time())}.jpg"
+                    
+                    face_image_obj = FaceImage.objects.create(
+                        student=profile,
+                        image=ContentFile(img_data, name=file_name),
+                        label=f"registration_{idx}"
+                    )
+                    
+                    # Generate embedding
+                    processed = face_recognition_service.process_and_save_embedding(face_image_obj)
+                    if processed:
+                        saved_count += 1
+                        logger.info(f"Successfully processed registration image {idx} for student {user.email}")
+                    else:
+                        logger.warning(f"Could not extract face embedding for registration image {idx} for student {user.email}")
+                except Exception as e:
+                    logger.error(f"Failed to process registration face image {idx} for student {user.email}: {e}")
             
-            # 2. If profile picture is uploaded, save as a FaceImage and process it
-            if user.profile_picture:
-                face_image = FaceImage.objects.create(
-                    student=profile,
-                    image=user.profile_picture,
-                    label="registration_photo"
-                )
-                # Compute embedding immediately
-                processed = face_recognition_service.process_and_save_embedding(face_image)
-                if processed:
-                    profile.is_face_registered = True
-                    profile.save(update_fields=['is_face_registered'])
+            # If we successfully processed at least one face image, set is_face_registered = True
+            if saved_count > 0:
+                profile.is_face_registered = True
+                profile.save(update_fields=['is_face_registered'])
+                logger.info(f"Set is_face_registered=True for student {user.email} with {saved_count} face images.")
+            else:
+                logger.warning(f"No face images were successfully processed for student {user.email}.")
+
         return user
 
 class UserProfileSerializer(serializers.ModelSerializer):

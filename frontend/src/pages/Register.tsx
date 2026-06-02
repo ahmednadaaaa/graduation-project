@@ -104,7 +104,7 @@ const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
       const email = form.email.trim().toLowerCase();
       const academic_year = GRADE_YEAR[form.grade] ?? 1;
       
-      // We pass academic_year to registerUser via an extra field, we need to update registerUser in apiClient
+      // Pass the captured face images to registerUser
       await registerUser({
         email,
         password: form.password,
@@ -112,10 +112,9 @@ const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
         role: "student",
         phone: form.phone,
         academic_year,
+        face_images: images,
       });
       
-      // Because we can't login without admin approval, we cannot upload face images right now.
-      // We will skip face image upload here and let the student do it after approval.
       setSuccess(true);
       setTimeout(() => onSwitchToLogin(), 3000);
     } catch (e: unknown) {

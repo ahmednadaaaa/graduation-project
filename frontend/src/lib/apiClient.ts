@@ -105,6 +105,7 @@ export async function registerUser(payload: {
   role: string;
   phone?: string;
   academic_year?: number;
+  face_images?: string[];
 }): Promise<void> {
   await apiClient.post("/users/register/", payload);
 }
