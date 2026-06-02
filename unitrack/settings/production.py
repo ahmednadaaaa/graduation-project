@@ -43,6 +43,12 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
+# CSRF Trusted Origins for Production
+CSRF_TRUSTED_ORIGINS = [
+    'https://unitrack.online',
+    'https://www.unitrack.online',
+]
+
 # ── Static files in production ─────────────────────────────────────────────
 # Run: python manage.py collectstatic before deploying
 STATICFILES_DIRS = []  # BASE_DIR/frontend/dist is only needed in dev templates
