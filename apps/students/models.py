@@ -85,8 +85,8 @@ class StudentProfile(models.Model):
 
     @property
     def has_enough_face_images(self):
-        # محتاج على الأقل 3 صور علشان الـ AI يشتغل كويس
-        return self.face_images.count() >= 3
+        # محتاج على الأقل صورة واحدة علشان الـ AI يشتغل
+        return self.face_images.count() >= 1
 
 
 def face_image_upload_path(instance, filename):
