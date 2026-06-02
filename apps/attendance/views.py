@@ -1,3 +1,5 @@
+import base64
+
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -14,7 +16,6 @@ from .serializers import (
     DailyAttendanceSerializer,
 )
 from apps.bus.models import Bus
-from apps.ai.face_recognition_service import face_recognition_service
 
 
 class ScanFaceView(APIView):
@@ -32,6 +33,7 @@ class ScanFaceView(APIView):
     permission_classes = [AllowAny]  # الـ ESP32 مش بيعمل login
 
     def post(self, request):
+        # ── Validation (unchanged) ──────────────────────────────────────────
         serializer = ScanFaceSerializer(data=request.data)
 
         if not serializer.is_valid():
@@ -44,73 +46,26 @@ class ScanFaceView(APIView):
         bus_number = serializer.validated_data['bus_number']
         action     = serializer.validated_data['action']
 
-        # جيب الأتوبيس
-        bus = get_object_or_404(Bus, bus_number=bus_number)
+        # Validate bus exists before queuing — fast DB check, no processing
+        bus = get_object_or_404(Bus, bus_number=bus_number)  # noqa: F841
 
-        # شغل الـ Face Recognition
-        recognition_result = face_recognition_service.identify_student(image)
+        # ── Convert image to base64 for Celery (bytes aren't broker-safe) ──
+        image_bytes = image.read()
+        image_b64 = base64.b64encode(image_bytes).decode('utf-8')
 
-        # جيب آخر موقع للأتوبيس
-        current_location = bus.current_location
+        # ── Dispatch to Celery worker — non-blocking ────────────────────────
+        from apps.ai_service.tasks import process_face_recognition
+        task = process_face_recognition.delay(image_b64, bus_number, action)
 
-        # ابني الـ log data
-        log_data = {
-            'bus': bus,
-            'action': action,
-            'captured_image': image,
-        }
-
-        # أضف الموقع لو موجود
-        if current_location:
-            log_data['bus_latitude']  = current_location.latitude
-            log_data['bus_longitude'] = current_location.longitude
-
-        if recognition_result['found']:
-            # ✅ تم التعرف على الطالب
-            student    = recognition_result['student']
-            confidence = recognition_result['confidence']
-
-            # احفظ الـ log
-            log_data.update({
-                'student': student,
-                'recognition_status': AttendanceLog.Status.RECOGNIZED,
-                'confidence_score': confidence,
-            })
-            attendance_log = AttendanceLog.objects.create(**log_data)
-
-            # حدّث الـ DailyAttendance
-            self._update_daily_attendance(student, action, attendance_log)
-
-            # ── الجديد: ابعت على الـ WebSocket ──
-            self._broadcast_attendance(bus_number, student, action, confidence)
-            self._notify_student(student, action, bus_number)
-
-            return Response({
-                'status': 'recognized',
-                'student': {
-                    'name': student.user.full_name,
-                    'university_id': student.university_id,
-                    'faculty': student.faculty,
-                },
-                'action': action,
-                'confidence': round(confidence * 100, 1),  # مثلاً 87.3%
-                'message': f'أهلاً {student.user.full_name}! تم تسجيل {action}'
-            })
-
-        else:
-            # ❌ لم يتم التعرف
-            log_data.update({
-                'student': None,
-                'recognition_status': AttendanceLog.Status.UNRECOGNIZED,
-                'confidence_score': 0.0,
-            })
-            AttendanceLog.objects.create(**log_data)
-
-            return Response({
-                'status': 'unrecognized',
-                'message': recognition_result.get('error', 'لم يتم التعرف على الطالب'),
-                'action': action,
-            }, status=status.HTTP_200_OK)
+        # Return immediately — ESP32 timeout is 15s, worker finishes in 2–5s
+        return Response(
+            {
+                'status': 'processing',
+                'task_id': task.id,
+                'message': 'Image received, processing in background',
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
 
     def _broadcast_attendance(self, bus_number, student, action, confidence):
         """

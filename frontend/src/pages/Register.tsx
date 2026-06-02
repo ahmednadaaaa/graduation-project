@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import FaceCapture from "@/components/FaceCapture";
 
-const GRADES = ["Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
+const GRADES = ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5"];
 const TOTAL_STEPS = 3;
 
 interface RegisterFormProps {
@@ -94,12 +94,11 @@ const RegisterForm = ({ onSwitchToLogin }: RegisterFormProps) => {
     setError("");
     setLoading(true);
     const GRADE_YEAR: Record<string, number> = {
-      "Grade 7": 1,
-      "Grade 8": 2,
-      "Grade 9": 3,
-      "Grade 10": 4,
-      "Grade 11": 5,
-      "Grade 12": 6,
+      "Year 1": 1,
+      "Year 2": 2,
+      "Year 3": 3,
+      "Year 4": 4,
+      "Year 5": 5,
     };
     try {
       const email = form.email.trim().toLowerCase();

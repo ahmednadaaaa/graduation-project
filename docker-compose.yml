@@ -1,0 +1,96 @@
+version: '3.9'
+
+# ── UniTrack docker-compose ───────────────────────────────────────────────────
+# Services:
+#   redis        — Celery broker + Django Channels layer
+#   web          — Daphne ASGI server (HTTP + WebSocket)
+#   celery_worker— Async face recognition tasks
+#
+# Usage:
+#   docker-compose up -d            # start all services
+#   docker-compose logs -f web      # follow web logs
+#   docker-compose logs -f celery_worker  # follow worker logs
+#   docker-compose down             # stop all services
+
+services:
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - redis_data:/data
+
+  # ── Django / Daphne (ASGI — HTTP + WebSocket) ────────────────────────────────
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: unitrack.settings.production
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - media_files:/app/media       # uploaded face images persist across restarts
+      - static_files:/app/staticfiles
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             daphne -b 0.0.0.0 -p 8000 unitrack.asgi:application"
+
+  # ── Celery Worker ─────────────────────────────────────────────────────────────
+  celery_worker:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: unitrack.settings.production
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    volumes:
+      - media_files:/app/media       # must share media volume with web
+    command: >
+      celery -A unitrack worker
+             --loglevel=info
+             --concurrency=2
+             --queues=celery
+             --time-limit=15
+             --soft-time-limit=10
+    healthcheck:
+      test: ["CMD", "celery", "-A", "unitrack", "inspect", "ping", "-d", "celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  redis_data:
+    driver: local
+  media_files:
+    driver: local
+  static_files:
+    driver: local

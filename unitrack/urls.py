@@ -5,10 +5,27 @@ from django.conf.urls.static import static
 from django.views.static import serve
 from django.urls import re_path
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+from django.http import JsonResponse
+from django.utils import timezone
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 from .views import FrontendAppView
 
+
+def health_check(request):
+    """
+    GET /health/
+    Lightweight liveness probe — used by Docker healthcheck and monitoring.
+    Returns 200 with JSON payload so curl -f works correctly.
+    """
+    return JsonResponse({
+        'status': 'healthy',
+        'timestamp': timezone.now().isoformat(),
+        'service': 'UniTrack API',
+    })
+
+
 urlpatterns = [
+    path('health/', health_check, name='health-check'),
     path('admin/', admin.site.urls),
     # Swagger / OpenAPI (requires: pip install drf-spectacular, INSTALLED_APPS += 'drf_spectacular')
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
@@ -33,7 +50,7 @@ if settings.DEBUG:
 
 # SPA fallback route (must be last and must not catch API/admin/static/media/assets)
 urlpatterns += [
-    re_path(r'^(?!api/|admin/|media/|static/|assets/).*$',
+    re_path(r'^(?!api/|admin/|media/|static/|assets/|health/).*$',
             FrontendAppView.as_view(),
             name='frontend-app'),
 ]

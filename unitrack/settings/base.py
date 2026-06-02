@@ -1,17 +1,23 @@
+"""
+unitrack/settings/base.py
+
+Shared settings for ALL environments (local + production).
+Do NOT set DEBUG, DATABASES, or ALLOWED_HOSTS here.
+Those are environment-specific — override them in local.py / production.py.
+"""
+
 import os
+from datetime import timedelta
 from pathlib import Path
+
 from dotenv import load_dotenv
 
-# Load .env file
+# Load .env file (harmless in production if .env doesn't exist)
 load_dotenv()
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'fallback-secret-key')
-
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
-
-ALLOWED_HOSTS = ['*']
+SECRET_KEY = os.getenv('SECRET_KEY', 'fallback-secret-key-change-in-production')
 
 # All apps — we tell Django where our custom apps live
 INSTALLED_APPS = [
@@ -71,7 +77,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'unitrack.wsgi.application'
 ASGI_APPLICATION = 'unitrack.asgi.application'
 
-# Channel Layers
+# ── Channel Layers ─────────────────────────────────────────────────────────────
 # In production: use Redis for multi-process broadcasting
 # In development: use InMemory (no Redis required) — works for single-server dev
 REDIS_URL = os.getenv('REDIS_URL', '')
@@ -94,7 +100,18 @@ else:
         },
     }
 
-# Email backend — console in dev, SMTP in production
+# ── Celery ────────────────────────────────────────────────────────────────────
+CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Africa/Cairo'
+# Hard kill after 15s — ESP32 HTTP timeout is 15s, task should finish in 2–5s
+CELERY_TASK_TIME_LIMIT = 15
+CELERY_TASK_SOFT_TIME_LIMIT = 10
+
+# ── Email ──────────────────────────────────────────────────────────────────────
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
@@ -103,18 +120,10 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'UniTrack <noreply@unitrack.app>')
 
-# Database — SQLite for now (we'll switch to PostgreSQL in production phase)
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
-# Tell Django to use OUR custom user model instead of the built-in one
+# ── Auth ───────────────────────────────────────────────────────────────────────
 AUTH_USER_MODEL = 'users.User'
 
-# DRF settings — use JWT for authentication
+# ── DRF ───────────────────────────────────────────────────────────────────────
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -136,14 +145,13 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
-# JWT settings
-from datetime import timedelta
+# ── JWT ───────────────────────────────────────────────────────────────────────
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=12),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
-# Media files (uploaded images like face photos)
+# ── Media & Static ────────────────────────────────────────────────────────────
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -160,15 +168,16 @@ STATICFILES_DIRS = [
     BASE_DIR / 'frontend' / 'dist',
 ]
 
+# ── Third-party API keys ──────────────────────────────────────────────────────
 GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
 
-# CORS — React dev server (Vite) talks to Django on another port
+# ── CORS ──────────────────────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:8080',
     'http://localhost:8080',
     'http://127.0.0.1:8000',
     'http://localhost:8000',
-    'http://192.168.1.5:8000', # User's local IP from logs
+    'http://192.168.1.5:8000',
 ]
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
@@ -178,3 +187,47 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://192.168.1.5:8000',
 ]
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'apps.ai_service': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'apps.ai': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'apps.attendance': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
