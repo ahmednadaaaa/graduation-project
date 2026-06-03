@@ -196,3 +196,32 @@ class StudentAttendanceHistoryView(APIView):
             }
             for log in logs
         ])
+
+
+class RegisterFCMTokenView(APIView):
+    """
+    POST /api/students/fcm-token/
+    الطالب بيسجل FCM token بتاع جهازه علشان يستقبل Push Notifications.
+    بيتبعت من الـ Mobile App عند الدخول أو لما يتجدد الـ token.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        fcm_token = request.data.get('fcm_token')
+
+        if not fcm_token:
+            return Response(
+                {'error': 'fcm_token is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            profile = request.user.student_profile
+            profile.fcm_token = fcm_token
+            profile.save(update_fields=['fcm_token'])
+            return Response({'message': 'FCM token registered successfully'})
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )

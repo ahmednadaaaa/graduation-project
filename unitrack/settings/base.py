@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'apps.attendance', # Phase 4 — Attendance System + AI
     'apps.dashboard',  # Phase 6 — Admin Dashboard APIs
     'apps.websockets', # Notifications and WebSockets
+    'apps.notifications',  # Phase 7 — Push Notifications (FCM + WebSocket)
 ]
 
 MIDDLEWARE = [
@@ -170,6 +171,10 @@ STATICFILES_DIRS = [
 
 # ── Third-party API keys ──────────────────────────────────────────────────────
 GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
+
+# Firebase credentials path (for FCM push notifications)
+# Place firebase-credentials.json in project root, or set env var
+FIREBASE_CREDENTIALS_PATH = os.getenv('FIREBASE_CREDENTIALS_PATH', 'firebase-credentials.json')
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = [

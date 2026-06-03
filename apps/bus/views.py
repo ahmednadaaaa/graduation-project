@@ -114,6 +114,17 @@ class UpdateBusLocationView(APIView):
         # ── الجديد: ابعت الموقع على الـ WebSocket ──
         self._broadcast_location(bus, location)
 
+        # ── تحقق من قرب الأتوبيس من الطلاب وابعت إشعار ──
+        try:
+            from apps.notifications.proximity import check_bus_approaching_students
+            check_bus_approaching_students(
+                bus=bus,
+                latitude=float(location.latitude),
+                longitude=float(location.longitude),
+            )
+        except Exception:
+            pass  # لا نوقف تحديث الموقع أبدًا بسبب الإشعارات
+
         return Response(
             {
                 'message': 'تم تحديث الموقع',
@@ -369,6 +380,17 @@ class DriverLocationView(APIView):
             )
         except Exception as e:
             print(f"WebSocket Broadcast Error in DriverLocationView: {e}")
+
+        # 4b. تحقق من قرب الأتوبيس من الطلاب وابعت إشعار
+        try:
+            from apps.notifications.proximity import check_bus_approaching_students
+            check_bus_approaching_students(
+                bus=bus,
+                latitude=float(location.latitude),
+                longitude=float(location.longitude),
+            )
+        except Exception:
+            pass  # لا نوقف تحديث الموقع أبدًا بسبب الإشعارات
 
         # 5. الرد بنجاح العملية
         return Response({"status": "ok"})

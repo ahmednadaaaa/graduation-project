@@ -24,3 +24,6 @@ numpy>=1.24
 psycopg2-binary>=2.9
 opencv-python-headless>=4.8
 requests>=2.31
+
+# Push Notifications (Firebase Cloud Messaging)
+firebase-admin>=6.2.0

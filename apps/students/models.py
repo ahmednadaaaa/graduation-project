@@ -67,6 +67,14 @@ class StudentProfile(models.Model):
         help_text='هل تم تسجيل الوجه؟'
     )
 
+    # FCM Token للـ Push Notifications (Firebase Cloud Messaging)
+    fcm_token = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text='Firebase Cloud Messaging token for push notifications'
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import StudentProfileView, FaceImageView, StudentAttendanceHistoryView
+from .views import StudentProfileView, FaceImageView, StudentAttendanceHistoryView, RegisterFCMTokenView
 
 urlpatterns = [
     # بروفايل الطالب
@@ -9,4 +9,7 @@ urlpatterns = [
     # صور الوجه
     path('face-images/', FaceImageView.as_view(), name='face-images'),
     path('face-images/<int:image_id>/', FaceImageView.as_view(), name='face-image-delete'),
+
+    # Firebase Push Notification token
+    path('fcm-token/', RegisterFCMTokenView.as_view(), name='register-fcm-token'),
 ]

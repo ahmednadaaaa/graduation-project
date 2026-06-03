@@ -160,6 +160,20 @@ class ScanFaceView(APIView):
             import logging
             logging.getLogger(__name__).error(f"Failed to send attendance notification: {e}")
 
+        # Push + enhanced WebSocket notification via notifications helpers
+        try:
+            from apps.notifications.helpers import (
+                notify_student_boarding,
+                notify_student_leaving,
+            )
+            if action == 'boarding':
+                notify_student_boarding(student)
+            elif action == 'leaving':
+                notify_student_leaving(student)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Push notification failed (non-critical): {e}")
+
     def _update_daily_attendance(self, student, action, log):
         """
         دالة داخلية لتحديث ملخص الحضور اليومي
