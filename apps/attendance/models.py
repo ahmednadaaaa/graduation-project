@@ -65,7 +65,7 @@ class AttendanceLog(models.Model):
         help_text='الصورة الملتقطة من الكاميرا'
     )
 
-    # موقع الأتوبيس وقت الـ scan
+    # موقع الأتوبيس وقت الـ scan (الحقول القديمة — محافظ عليها)
     bus_latitude = models.DecimalField(
         max_digits=9, decimal_places=6,
         null=True, blank=True
@@ -73,6 +73,30 @@ class AttendanceLog(models.Model):
     bus_longitude = models.DecimalField(
         max_digits=9, decimal_places=6,
         null=True, blank=True
+    )
+
+    # ── حقول GPS للمراجعة الإدارية ──────────────────────────────
+    # بيتحفظوا أوتوماتيك من موقع الأتوبيس وقت الـ boarding/leaving
+    # كلهم اختياريين علشان النظام يشتغل لو مفيش GPS
+    boarding_latitude = models.DecimalField(
+        max_digits=9, decimal_places=6,
+        null=True, blank=True,
+        help_text='خط عرض موقع الصعود'
+    )
+    boarding_longitude = models.DecimalField(
+        max_digits=9, decimal_places=6,
+        null=True, blank=True,
+        help_text='خط طول موقع الصعود'
+    )
+    leaving_latitude = models.DecimalField(
+        max_digits=9, decimal_places=6,
+        null=True, blank=True,
+        help_text='خط عرض موقع النزول'
+    )
+    leaving_longitude = models.DecimalField(
+        max_digits=9, decimal_places=6,
+        null=True, blank=True,
+        help_text='خط طول موقع النزول'
     )
 
     # وقت الـ event
@@ -92,6 +116,20 @@ class AttendanceLog(models.Model):
         if self.student:
             return self.student.user.full_name
         return 'غير معروف'
+
+    @property
+    def boarding_maps_url(self):
+        """رابط Google Maps لموقع الصعود — None لو مفيش إحداثيات"""
+        if self.boarding_latitude and self.boarding_longitude:
+            return f'https://www.google.com/maps?q={self.boarding_latitude},{self.boarding_longitude}'
+        return None
+
+    @property
+    def leaving_maps_url(self):
+        """رابط Google Maps لموقع النزول — None لو مفيش إحداثيات"""
+        if self.leaving_latitude and self.leaving_longitude:
+            return f'https://www.google.com/maps?q={self.leaving_latitude},{self.leaving_longitude}'
+        return None
 
 
 class DailyAttendance(models.Model):
@@ -123,6 +161,29 @@ class DailyAttendance(models.Model):
     # وقت الركوب ووقت النزول
     boarding_time = models.DateTimeField(null=True, blank=True)
     leaving_time  = models.DateTimeField(null=True, blank=True)
+
+    # ── إحداثيات GPS لأغراض المراجعة الإدارية ──────────────────
+    # بتتحفظ أوتوماتيك من موقع الأتوبيس — اختيارية دايماً
+    boarding_latitude = models.DecimalField(
+        max_digits=9, decimal_places=6,
+        null=True, blank=True,
+        help_text='خط عرض موقع الصعود'
+    )
+    boarding_longitude = models.DecimalField(
+        max_digits=9, decimal_places=6,
+        null=True, blank=True,
+        help_text='خط طول موقع الصعود'
+    )
+    leaving_latitude = models.DecimalField(
+        max_digits=9, decimal_places=6,
+        null=True, blank=True,
+        help_text='خط عرض موقع النزول'
+    )
+    leaving_longitude = models.DecimalField(
+        max_digits=9, decimal_places=6,
+        null=True, blank=True,
+        help_text='خط طول موقع النزول'
+    )
 
     class Meta:
         verbose_name = 'Daily Attendance'

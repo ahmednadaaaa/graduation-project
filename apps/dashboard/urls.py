@@ -11,6 +11,7 @@ from .views import (
     AttendanceReportView,
     UnrecognizedScansView,
     AttendanceLogListView,
+    StudentLocationAuditView,
 )
 
 urlpatterns = [
@@ -30,6 +31,7 @@ urlpatterns = [
     path('buses/<str:bus_number>/',      BusManagementDetailView.as_view(), name='dashboard-bus-detail'),
 
     # تقارير
-    path('reports/attendance/',    AttendanceReportView.as_view(),    name='attendance-report'),
-    path('reports/unrecognized/',  UnrecognizedScansView.as_view(),   name='unrecognized-scans'),
+    path('reports/attendance/',      AttendanceReportView.as_view(),      name='attendance-report'),
+    path('reports/unrecognized/',    UnrecognizedScansView.as_view(),      name='unrecognized-scans'),
+    path('reports/location-audit/',  StudentLocationAuditView.as_view(),   name='location-audit'),
 ]

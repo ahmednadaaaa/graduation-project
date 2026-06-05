@@ -522,3 +522,109 @@ class AttendanceLogListView(APIView):
             }
             for log in logs
         ])
+
+
+# ══════════════════════════════════════════
+# LOCATION AUDIT REPORT (Admin Only)
+# ══════════════════════════════════════════
+
+class StudentLocationAuditView(APIView):
+    """
+    GET /api/dashboard/reports/location-audit/
+
+    تقرير للأدمن يُظهر لكل طالب في يوم معين:
+      - وقت الصعود + رابط Google Maps لموقع الصعود
+      - وقت النزول + رابط Google Maps لموقع النزول
+
+    الهدف: يجاوب على سؤال ولي الأمر
+    "فين نزل ابني النهارده؟"
+
+    Query params:
+      - date (YYYY-MM-DD) — افتراضي: اليوم
+      - student_id        — اختياري: فلتر بطالب معين
+      - bus_number        — اختياري: فلتر بأتوبيس معين
+    """
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        # ── تحديد التاريخ ──────────────────────────────────────
+        date_str = request.query_params.get('date')
+        if date_str:
+            try:
+                from datetime import datetime
+                target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response(
+                    {'error': 'صيغة التاريخ غلط — استخدم YYYY-MM-DD'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            target_date = timezone.now().date()
+
+        # ── بناء الـ query ──────────────────────────────────────
+        records = DailyAttendance.objects.filter(
+            date=target_date
+        ).select_related('student', 'student__user')
+
+        # فلتر بطالب معين
+        student_id = request.query_params.get('student_id')
+        if student_id:
+            records = records.filter(student__id=student_id)
+
+        # فلتر بأتوبيس معين
+        bus_number = request.query_params.get('bus_number')
+        if bus_number:
+            records = records.filter(student__assigned_bus=bus_number)
+
+        records = records.order_by('student__user__full_name')
+
+        # ── بناء النتيجة ────────────────────────────────────────
+        def make_maps_url(lat, lng):
+            """بناء رابط Google Maps من الإحداثيات"""
+            if lat and lng:
+                return f'https://www.google.com/maps?q={lat},{lng}'
+            return None
+
+        rows = []
+        for r in records:
+            boarding_url = make_maps_url(r.boarding_latitude, r.boarding_longitude)
+            leaving_url  = make_maps_url(r.leaving_latitude,  r.leaving_longitude)
+
+            rows.append({
+                'student_id':    r.student.id,
+                'student_name':  r.student.user.full_name,
+                'university_id': r.student.university_id,
+                'assigned_bus':  r.student.assigned_bus or '—',
+                'status':        r.status,
+
+                # ── Boarding ──────────────────────────────────
+                'boarding_time': (
+                    r.boarding_time.strftime('%I:%M %p')
+                    if r.boarding_time else None
+                ),
+                'boarding_location': {
+                    'latitude':  str(r.boarding_latitude)  if r.boarding_latitude  else None,
+                    'longitude': str(r.boarding_longitude) if r.boarding_longitude else None,
+                    'maps_url':  boarding_url,
+                    # عرض '📍 موقع الصعود' أو '—' في الـ Frontend
+                    'display':   '📍 موقع الصعود' if boarding_url else '—',
+                },
+
+                # ── Leaving ───────────────────────────────────
+                'leaving_time': (
+                    r.leaving_time.strftime('%I:%M %p')
+                    if r.leaving_time else None
+                ),
+                'leaving_location': {
+                    'latitude':  str(r.leaving_latitude)  if r.leaving_latitude  else None,
+                    'longitude': str(r.leaving_longitude) if r.leaving_longitude else None,
+                    'maps_url':  leaving_url,
+                    'display':   '📍 موقع النزول' if leaving_url else '—',
+                },
+            })
+
+        return Response({
+            'date':  str(target_date),
+            'count': len(rows),
+            'rows':  rows,
+        })

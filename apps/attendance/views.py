@@ -63,10 +63,19 @@ class ScanFaceView(APIView):
             'captured_image': image,
         }
 
-        # أضف الموقع لو موجود
+        # أضف الموقع لو موجود (bus_latitude/bus_longitude — الحقول القديمة)
         if current_location:
             log_data['bus_latitude']  = current_location.latitude
             log_data['bus_longitude'] = current_location.longitude
+
+        # أضف إحداثيات boarding أو leaving بشكل منفصل للمراجعة الإدارية
+        if current_location:
+            if action == 'boarding':
+                log_data['boarding_latitude']  = current_location.latitude
+                log_data['boarding_longitude'] = current_location.longitude
+            elif action == 'leaving':
+                log_data['leaving_latitude']  = current_location.latitude
+                log_data['leaving_longitude'] = current_location.longitude
 
         if recognition_result['found']:
             # ✅ تم التعرف على الطالب
@@ -194,8 +203,16 @@ class ScanFaceView(APIView):
         if action == 'boarding':
             daily.status        = DailyAttendance.AttendanceStatus.PRESENT
             daily.boarding_time = log.timestamp
+            # حفظ موقع الصعود في ملخص اليوم
+            if log.boarding_latitude and log.boarding_longitude:
+                daily.boarding_latitude  = log.boarding_latitude
+                daily.boarding_longitude = log.boarding_longitude
         elif action == 'leaving':
             daily.leaving_time  = log.timestamp
+            # حفظ موقع النزول في ملخص اليوم
+            if log.leaving_latitude and log.leaving_longitude:
+                daily.leaving_latitude  = log.leaving_latitude
+                daily.leaving_longitude = log.leaving_longitude
 
         daily.save()
 
